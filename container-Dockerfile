@@ -1,0 +1,5 @@
+FROM busybox:ubuntu-14.04
+MAINTAINER jeremyot@gmail.com
+
+ADD docker-status /usr/bin/docker-status
+ENTRYPOINT ["/usr/bin/docker-status"]
