@@ -16,10 +16,10 @@ import (
 const DockerSocket = "unix:///var/run/docker.sock"
 
 type ContainerResponse struct {
-	Error      string                 `json:"error,omitempty"`
-	Containers []docker.APIContainers `json:"containers,omitempty"`
-	Host       string                 `json:"host,omitempty"`
-	Port       int                    `json:"port,omitempty"`
+	Error      string              `json:"error,omitempty"`
+	Containers []*docker.Container `json:"containers,omitempty"`
+	Host       string              `json:"host,omitempty"`
+	Port       int                 `json:"port,omitempty"`
 }
 
 type ClusterContainerResponse struct {
@@ -103,10 +103,36 @@ func (s *StatusServer) handleLocalStatusRequest(writer http.ResponseWriter, requ
 		s.writeError(writer, 500, err)
 		return
 	}
+	fullContainers := make([]*docker.Container, 0, len(containers))
 	for _, c := range containers {
-		c.Ports = nil
+		container, err := s.dockerClient.InspectContainer(c.ID)
+		if err != nil {
+			s.writeError(writer, 500, err)
+			return
+		}
+		// User friendly image
+		container.Image = c.Image
+		// Clear potentially secrent info
+		container.Path = ""
+		container.Args = nil
+		container.Config = nil
+		container.Node = nil
+		container.NetworkSettings = nil
+		container.ResolvConfPath = ""
+		container.SysInitPath = ""
+		container.HostnamePath = ""
+		container.HostsPath = ""
+		container.LogPath = ""
+		container.Driver = ""
+		container.Mounts = nil
+		container.Volumes = nil
+		container.VolumesRW = nil
+		container.HostConfig = nil
+		container.ExecIDs = nil
+		container.AppArmorProfile = ""
+		fullContainers = append(fullContainers, container)
 	}
-	json.NewEncoder(writer).Encode(ContainerResponse{Containers: containers})
+	json.NewEncoder(writer).Encode(ContainerResponse{Containers: fullContainers})
 	log.Println("GET /status/local in", time.Now().Sub(requestStart))
 }
 
